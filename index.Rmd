@@ -1,0 +1,94 @@
+---
+title: rCharts
+subtitle: Interactive JS Charts from R
+author: Ramnath Vaidyanathan
+github: {user: ramnathv, repo: rChartsPerfAnalytics, branch: "gh-pages"}
+framework: minimal
+mode: selfcontained
+widgets: [polycharts]
+highlighter: highlight.js
+hitheme: solarized_light
+background: images/light_wool.png
+assets:
+  css: 
+    - "http://fonts.googleapis.com/css?family=Open+Sans"
+    - "http://fonts.googleapis.com/css?family=Open+Sans+Condensed:700"
+---
+
+```{r echo = F, message = F, cache = F}
+opts_chunk$set(results = 'asis', comment = NA, message = F, tidy = F)
+require(rCharts)
+options(RCHART_WIDTH = 600, RCHART_HEIGHT = 400)
+```
+
+## Performance Analytics with rCharts and Slidify
+
+This post illustrates how to get PerformanceAnalytics Charts using rCharts and Slidify. All the code here is courtesy [timelyportfolio](https://github.com/timelyportfolio/clickme_rCharts_test/). I have just done some minor refactoring.
+
+Let us first load the require packages and set up the data we need.
+
+```{r setupfunctions}
+require(PerformanceAnalytics)
+require(reshape2)
+data(managers)
+dat = managers[,c(1,8,9)]
+```
+
+### Process the Data
+
+We need to process the data before we plot them. Here are a couple of helper functions to achieve that.
+
+```{r}
+xtsMelt <- function(xtsData,metric){
+  df <- data.frame(index(xtsData),coredata(xtsData),stringsAsFactors=FALSE)
+  df.melt <- melt(df,id.vars=1)
+  df.melt <- data.frame(df.melt,rep(metric,NROW(df.melt)))
+  #little unnecessary housekeeping
+  df.melt <- df.melt[,c(1,2,4,3)]
+  colnames(df.melt) <- c("date","indexname","metric","value")
+  df.melt$date <- as.Date(df.melt$date)
+  return(df.melt)
+}
+getCumul <- function(dat){
+  data.cumul <- cumprod(1 + dat)
+  data.melt <- xtsMelt(data.cumul, "CumulativeGrowth")
+  i <- sapply(data.melt, is.factor)
+  data.melt[i] <- lapply(data.melt[i], gsub, pattern="\\.", replacement="")
+  #get date as text
+  data.melt$date <- format(data.melt$date,"%Y-%m-%d")
+  return(data.melt)
+}
+getDrawdowns <- function(dat) {
+  data.drawdowns <- Drawdowns(dat)
+  data.melt <- xtsMelt(data.drawdowns, "Drawdown")
+  i <- sapply(data.melt, is.factor)
+  data.melt[i] <- lapply(data.melt[i], gsub, pattern="\\.", replacement="")
+  #get date as text
+  data.melt$date <- format(data.melt$date,"%Y-%m-%d")  
+  return(data.melt) 
+}
+```
+
+## Plot It
+
+Now that we have everything setup, it is time to get plotting.
+
+
+```{r}
+p1 <- rPlot(height = 400, value ~ date, data = getCumul(dat), 
+  color = 'indexname', type = 'point', size = list(const=1)) 
+p1$set( legendPosition = "top" )
+p1$facet(type = "wrap",var = "metric", cols = 1,
+ formatter="function(object) {return object.metric;}")
+p1$print('chart1')
+```
+
+```{r}
+p1 <- rPlot(height = 200, value ~ date, data = getDrawdowns(dat), 
+ color = 'indexname', type = 'line', size = list(const = 1)) 
+p1$set( legendPosition = "top" )
+p1$facet(type = "wrap", var="metric", cols=1,
+  formatter = "function(object) {return object.metric;}")
+p1$print('chart2')
+```
+
