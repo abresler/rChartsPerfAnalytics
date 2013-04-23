@@ -19,7 +19,6 @@ shinyServer(function(input, output) {
     p2$set( legendPosition = "top", dom = 'chart2')
     p2$facet(type = "wrap", var="metric", cols=1,
       formatter = "function(object) {return object.metric;}")
-    p2$print('chart2')
     return(p2)
   })
 })
